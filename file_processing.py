@@ -8,8 +8,9 @@ from docx import Document
 from openpyxl import load_workbook  # ✅ Import for XLSX processing
 from utils import extract_text_from_pdf
 
-UPLOAD_FOLDER = "./uploads"
+UPLOAD_FOLDER = "/tmp/uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
 
 async def upload_files(files: List[UploadFile]) -> dict:
     """
