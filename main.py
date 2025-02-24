@@ -61,15 +61,17 @@ def chat(request: ChatRequest):
 
 
 @app.post("/upload/")
-async def upload(files: list[UploadFile] = File(...)):
+async def upload(files: list[UploadFile] = File(...)):  # ✅ Ensure correct type
     try:
         if not files:
             return JSONResponse(content={"error": "No files received"}, status_code=400)
 
-        result = await upload_files(files)  # ✅ Call the function from file_processing.py
-        return JSONResponse(content=result)  # ✅ Directly return JSONResponse
+        result = await upload_files(files)  # ✅ Process and upload files
+        return JSONResponse(content=result)  # ✅ Return file URLs and extracted text
+
     except Exception as e:
         return JSONResponse(content={"error": str(e)}, status_code=500)
+
 @app.get("/")
 def root():
     return {"message": "FastAPI Groq API is running!"}
