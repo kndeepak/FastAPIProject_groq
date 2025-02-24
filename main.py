@@ -17,7 +17,7 @@ app = FastAPI()
 # Enable CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://your-frontend.vercel.app"],
+    allow_origins=["https://chatbot-react-teal.vercel.app"],
     # allow_origins=["http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
