@@ -10,8 +10,8 @@ from utils import extract_text_from_pdf
 from supabase import create_client, Client  # ✅ Import Supabase
 
 # Supabase Configuration
-SUPABASE_URL = "https://your-supabase-project-url.supabase.co"  # Replace with your Supabase project URL
-SUPABASE_KEY = "your-supabase-api-key"  # Replace with your Supabase service role key
+SUPABASE_URL = "https://tkpimadtgruwryrwsofm.supabase.co"  # Replace with your Supabase project URL
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRrcGltYWR0Z3J1d3J5cndzb2ZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDA0MzQ3MTgsImV4cCI6MjA1NjAxMDcxOH0.W-KWnVcClcWWcbX_x1EdtmN2V_Jq-6wr1rMWxlbByVM"  # Replace with your Supabase service role key
 SUPABASE_BUCKET = "uploads"  # Replace with your bucket name
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
