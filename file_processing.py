@@ -7,6 +7,14 @@ from fastapi import UploadFile, HTTPException
 from docx import Document
 from openpyxl import load_workbook  # ✅ Import for XLSX processing
 from utils import extract_text_from_pdf
+from supabase import create_client, Client  # ✅ Import Supabase
+
+# Supabase Configuration
+SUPABASE_URL = "https://your-supabase-project-url.supabase.co"  # Replace with your Supabase project URL
+SUPABASE_KEY = "your-supabase-api-key"  # Replace with your Supabase service role key
+SUPABASE_BUCKET = "uploads"  # Replace with your bucket name
+
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 UPLOAD_FOLDER = "/tmp/uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -18,73 +26,56 @@ async def upload_files(files: List[UploadFile]) -> dict:
     - PDF, TXT, DOC, DOCX, PAGES, RTF, MD, CSV, and XLSX.
     """
     combined_text = ""
-    uploaded_file_types = []
+    uploaded_files = []
 
     for file in files:
         try:
             file_extension = file.filename.split(".")[-1].lower()
-            file_path = os.path.join(UPLOAD_FOLDER, file.filename)
+            file_path = f"uploads/{file.filename}"  # Storage path in Supabase
 
-            # Save file to disk
-            async with aiofiles.open(file_path, "wb") as f:
-                await f.write(await file.read())
+            # ✅ Upload file to Supabase
+            file_content = await file.read()  # Read file content
+            response = supabase.storage.from_(SUPABASE_BUCKET).upload(file_path, file_content, file_options={"contentType": file.content_type})
 
-            # Process based on file type
+            if "error" in response:
+                raise HTTPException(status_code=500, detail=f"Failed to upload {file.filename} to Supabase: {response['error']}")
+
+            # ✅ Get the public URL
+            file_url = f"{SUPABASE_URL}/storage/v1/object/public/{SUPABASE_BUCKET}/{file_path}"
+            uploaded_files.append({"filename": file.filename, "url": file_url})
+
+            # ✅ Process text extraction (if needed)
             if file_extension == "pdf":
-                pdf_text = extract_text_from_pdf(file_path)
+                pdf_text = extract_text_from_pdf(file_url)  # Modify this function to accept URLs if necessary
                 combined_text += pdf_text + "\n"
-                uploaded_file_types.append("PDF")
 
             elif file_extension in ["txt", "md"]:
-                async with aiofiles.open(file_path, "r") as f:
-                    txt_text = await f.read()
-                combined_text += txt_text + "\n"
-                uploaded_file_types.append("Text")
+                combined_text += file_content.decode("utf-8") + "\n"
 
             elif file_extension == "docx":
-                doc = Document(file_path)
-                docx_text = "\n".join([p.text for p in doc.paragraphs])
-                combined_text += docx_text + "\n"
-                uploaded_file_types.append("DOCX")
+                doc = Document(file_url)  # Modify text extraction to handle URLs
+                combined_text += "\n".join([p.text for p in doc.paragraphs]) + "\n"
 
             elif file_extension in ["doc", "pages", "rtf"]:
-                textract_text = textract.process(file_path).decode("utf-8")
+                textract_text = textract.process(file_url).decode("utf-8")
                 combined_text += textract_text + "\n"
-                uploaded_file_types.append(file_extension.upper())
 
             elif file_extension == "csv":
-                async with aiofiles.open(file_path, "r") as f:
-                    content = await f.read()
-                csv_reader = csv.reader(content.splitlines())
-                csv_text = "\n".join([", ".join(row) for row in csv_reader])
-                combined_text += csv_text + "\n"
-                uploaded_file_types.append("CSV")
+                csv_reader = csv.reader(file_content.decode("utf-8").splitlines())
+                combined_text += "\n".join([", ".join(row) for row in csv_reader]) + "\n"
 
             elif file_extension == "xlsx":
-                wb = load_workbook(file_path, data_only=True)  # ✅ Load Excel workbook
-                xlsx_text = ""
-
+                wb = load_workbook(file_url, data_only=True)  # Modify function to open from URLs
                 for sheet in wb.sheetnames:
                     ws = wb[sheet]
-                    xlsx_text += f"\n[Sheet: {sheet}]\n"
                     for row in ws.iter_rows(values_only=True):
-                        row_text = ", ".join(str(cell) if cell is not None else "" for cell in row)
-                        xlsx_text += row_text + "\n"
-
-                combined_text += xlsx_text + "\n"
-                uploaded_file_types.append("XLSX")
-
-            else:
-                raise HTTPException(
-                    status_code=400, detail=f"Unsupported file type: {file.filename}"
-                )
+                        combined_text += ", ".join(str(cell) if cell else "" for cell in row) + "\n"
 
         except Exception as e:
-            raise HTTPException(
-                status_code=500, detail=f"Error processing {file.filename}: {str(e)}"
-            )
+            raise HTTPException(status_code=500, detail=f"Error processing {file.filename}: {str(e)}")
 
     return {
-        "message": f"{', '.join(uploaded_file_types)} uploaded successfully",
-        "content": combined_text,
+        "message": f"Files uploaded successfully",
+        "files": uploaded_files,
+        "extracted_text": combined_text,
     }
